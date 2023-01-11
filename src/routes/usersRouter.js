@@ -1,116 +1,124 @@
 const express = require('express');
-const client = require ('../client');
+const client = require('../client');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const accessTokenSecret = 'youraccesstokensecret';
 
 const usersRouter = express.Router();
 
 
-    // récupération du tableau de tous les utilisateurs
-    usersRouter.get('/', async (req, res) => {
-        try {
-            const data = await client.query('SELECT id, name FROM users');
+// récupération du tableau de tous les utilisateurs
+usersRouter.post('/login', async (req, res) => {
+    console.log(req.body.password);
+    const { name, password } = req.body;
 
-            res.json(data.rows);
-        }
-        catch (err) {
-            console.log(err.stack);
-        }
-    });
+    // vérifier le nom de l'utilisateur existe
+    if (name === undefined || typeof name !== typeof String()) {
+        res.status(400).json({
+            status: "FAIL",
+            message: "Le nom est inexistant ou invalide",
+            data: undefined
+        });
+        console.log('POST | users/login | 400 | FAIL \nLe nom est inexistant ou invalide');
+    }
 
-    // récupération d'un utilisateurs défini
-    usersRouter.get('/:id', async (req, res) => {
-        console.log(req.params);
-        const id = req.params.id;
+    // vérifier le mot de passe existe
+    if (password === undefined || typeof password !== typeof String()) {
+        res.status(400).json({
+            status: "FAIL",
+            message: "Le mot de passe n'existe pas",
+            data: undefined
+        });
+        console.log('POST | users/login | 400 | FAIL \nLe mot de passe n\'existe pas');
 
-        try {
-            const data = await client.query('SELECT id, name FROM tickets where id = $1', [id]);
+    }
 
-            res.json(data.rows);
-        }
-        catch (err) {
-            console.log(err.stack);
-        }
-    });
-
-    // créer un utilisateur dans la table des users
-    usersRouter.post('/', async (req, res) => {
-        console.log("test", req.body);
+    bcrypt.hash(password, 10, async (err, hash) => {
 
         try {
-            const name = req.body.name;
 
-            const data = await client.query('INSERT INTO users (name) VALUES ($1) RETURNING *', [name]);
-
-            res.json(data.rows);
-        }
-        catch (err) {
-            console.log(err.stack);
-        }
-    });
-
-    // modification d'un utilisateur défini et les messages d'erreur
-    usersRouter.put('/:id', async (req, res) => {
-        console.log(req.params);
-        const name = req.body.name;
-        const id = req.params.id;
-
-        if (!(id && name)) {
-            res.status(400).json({
-                status: "FAIL",
-                message: "Structure incorrect, pas de n°id et pas de nom",
-                data: undefined
-            });
-            console.log(`PUT | /users/:id | 400 | FAIL \n Structure incorrect, pas de n°id et pas de nom`);
-        }
-
-        try {
-            const data = await client.query('UPDATE users SET name =$1  WHERE id =$2 RETURNING*', [name, id]);
+            const data = await client.query('INSERT INTO users (name, password) VALUES ($1, $2) RETURNING *', [name]);
 
             if (data.rowCount > 0) {
                 res.status(200).json({
-                    status: "SUCCESS",
-                    message: `L'utilisateur ${id} a bien été modifié`,
+                    status: "SECCESS",
+                    message: `Nom et Password existent. Récupération de ${data.rowCount} tickets`,
                     data: data.rows
                 });
-                console.log(`PUT | /users/:id | 200 | SUCCESS \nL'utilisateur ${id} a bien été modifié `);
-            } else {
+                console.log(`GET | api/users/login | 200 | SUCCESS \nNom et Password existent. Récupération de ${data.rowCount} tickets`);
+            }
+            else {
                 res.status(400).json({
                     status: "FAIL",
-                    message: `L'utilisateur ${id} n'existe pas`,
+                    message: `L'utilisateur n'existe pas ou le password est invalide`,
                     data: undefined
                 });
-                console.log(`PUT | /users/:id | 400 | FAIL \nL'utilisateur ${id} n'existe pas `);
+                console.log(`GET | api/users/login | 400 | FAIL \nL'utilisateur n'existe pas ou le password est invalide`);
             }
+            const accessToken = jwt.sign({ userId: user.id }, accessTokenSecret);
 
-        }
-        catch (err) {
-            res.status(500).json({
-                status: "FAIL",
-                message: "Serveur introuvable",
-                data: undefined
+            res.status(200).json({
+                status: 'OK',
+                data: accessToken,
+                message: 'logged in'
             });
-            console.log(`PUT | /users/:id | 400 | FAIL \n${err.stack}`);
         }
-    });
 
-    // suppression d'un utilisateur défini dans la table users
-    usersRouter.delete('/:id', async (req, res) => {
-        console.log(req.params);
-        const id = req.params.id;
-
-
-        try {
-            // supprimer les tickets correspondant aux users supprimer
-            await client.query('DELETE FROM tickets WHERE user_id = $1 ', [id]);
-            // supprimer le users sélectionné
-            const data = await client.query('DELETE FROM users WHERE id = $1 RETURNING*', [id]);
-            res.json(data.rows);
-
-            
-
-        }
         catch (err) {
             console.log(err.stack);
-        }
+        };
     });
+});
 
-    module.exports = usersRouter;
+
+// créer un utilisateur dans la table des users
+usersRouter.post('/register', async (req, res) => {
+    console.log(req.body.password);
+    const password = req.body.password;
+    const name = req.body.name;
+
+    // vérifier le nom de l'utilisateur existe
+    if (name === undefined || typeof name !== typeof String()) {
+        res.status(400).json({
+            status: "FAIL",
+            message: "Le nom est inexistant ou invalide",
+            data: undefined
+        });
+        console.log('POST | users/login | 400 | FAIL \nLe nom est inexistant ou invalide');
+    }
+
+    // vérifier le mot de passe existe
+    if (password === undefined || typeof password !== typeof String()) {
+        res.status(400).json({
+            status: "FAIL",
+            message: "Le mot de passe n'existe pas",
+            data: undefined
+        });
+        console.log('POST | users/login | 400 | FAIL \nLe mot de passe n\'existe pas');
+
+    }
+    bcrypt.hash(password, 10, async (err, hash) => {
+        // Store hash in your password DB.
+        try {
+
+            const data = await client.query('INSERT INTO users (name, password) VALUES ($1, $2) RETURNING id,name', [name, hash]);
+            if (data.rowCount > 0) {
+                res.status(200).json({
+                    status: "SUCCESS",
+                    message: `Le mot de passe de ${name} a bien été modifié`,
+                    data: data.rows
+                });
+                console.log(`POST | /api/users/register | 200 | SUCCESS \nLe mot de passe de ${name} a bien été modifié `);
+
+            }
+        }
+
+        catch (err) {
+            console.log(err.stack);
+        };
+    });
+});
+
+
+module.exports = usersRouter;
