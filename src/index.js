@@ -3,8 +3,8 @@ const bcrypt = require('bcrypt');
 const express = require('express');
 const { Client } = require('pg');
 require('dotenv').config();
-const ticketsRouter = require ('./routes/ticketsRouter');
-const usersRouter = require ('./routes/usersRouter');
+const ticketsRouter = require('./routes/ticketsRouter');
+const usersRouter = require('./routes/usersRouter');
 
 /************************************************
 * Data's routes
@@ -12,7 +12,7 @@ const usersRouter = require ('./routes/usersRouter');
 // declarations
 const app = express();
 const port = 8000;
-const client = new Client({
+/* const client = new Client({
     user: process.env.DB_USERNAME,
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
@@ -20,10 +20,9 @@ const client = new Client({
     port: 5432,
 });
 
-app.use('/api/tickets', ticketsRouter);
-app.use('/api/users', usersRouter);
-client.connect();
 
+client.connect();
+ */
 app.use(express.json());
 app.use(function (req, res, next) {
 
@@ -45,7 +44,8 @@ app.use(function (req, res, next) {
 });
 
 // LES ROUTES:
-
+app.use('/api/tickets', ticketsRouter);
+app.use('/api/users', usersRouter);
 // users login
 app.post('/register', async (req, res) => {
     console.log(req.body.password);
@@ -79,11 +79,11 @@ app.get('/login', async (req, res) => {
     const password = req.body.password;
     const name = req.body.name;
     bcrypt.hash(password, 10, async (err, hash) => {
-        
+
         try {
 
             const data = await client.query('SELECT password FROM users WHERE name = $1', [name]);
-            
+
             if (data.rowCount > 0) {
                 res.status(200).json({
                     status: "SECCESS",
@@ -109,17 +109,13 @@ app.get('/login', async (req, res) => {
     });
 });
 
-    // vérification du bon démarage de la page
-    app.get('/hello', (req, res) => {
-        res.send('Hello World!')
-    });
 
 
 
 
 
 
-    // ecoute le port 8000
-    app.listen(port, () => {
-        console.log(`Example app listening on port http://localhost:${port}`);
-    });
+// ecoute le port 8000
+app.listen(port, () => {
+    console.log(`Example app listening on port http://localhost:${port}`);
+});

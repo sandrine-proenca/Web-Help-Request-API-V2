@@ -1,8 +1,8 @@
 const express = require('express');
+const client = require ('../client');
 
 const usersRouter = express.Router();
 
-const client = require ('./client');
 
     // récupération du tableau de tous les utilisateurs
     usersRouter.get('/', async (req, res) => {
