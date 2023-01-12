@@ -1,16 +1,16 @@
+// IMPORTS
 const express = require('express');
 const client = require('../client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const accessTokenSecret = 'youraccesstokensecret';
+//const accessTokenSecret = 'youraccesstokensecret';
 
 const usersRouter = express.Router();
 
 
-// récupération du tableau de tous les utilisateurs
+// POST DU LOGIN UTILISATEUR
 usersRouter.post('/login', async (req, res) => {
-    console.log(req.body.password);
     const { name, password } = req.body;
 
     // vérifier le nom de l'utilisateur existe
@@ -20,8 +20,11 @@ usersRouter.post('/login', async (req, res) => {
             message: "Le nom est inexistant ou invalide",
             data: undefined
         });
-        console.log('POST | users/login | 400 | FAIL \nLe nom est inexistant ou invalide');
+        console.log(`${req.method} | ${req.originalUrl} |  \nLe nom est inexistant ou invalide`);
+        //console.log('POST | users/login | 400 | FAIL \nLe nom est inexistant ou invalide');
+        return ;
     }
+
 
     // vérifier le mot de passe existe
     if (password === undefined || typeof password !== typeof String()) {
@@ -30,49 +33,45 @@ usersRouter.post('/login', async (req, res) => {
             message: "Le mot de passe n'existe pas",
             data: undefined
         });
-        console.log('POST | users/login | 400 | FAIL \nLe mot de passe n\'existe pas');
-
+        console.log(`${req.method} | ${req.originalUrl} |  \nLe mot de passe n\'existe pas`);
+        //console.log('POST | users/login | 400 | FAIL \nLe mot de passe n\'existe pas');
+        return;
     }
+    try {
 
-    bcrypt.hash(password, 10, async (err, hash) => {
+        const data = await client.query('SELECT password, id FROM users WHERE name = $1', [name]);
+        bcrypt.compare(password, data.rows[0].password, function (err, result) {
 
-        try {
+            const accessToken = jwt.sign({ userId: data.rows[0].id }, process.env.TOKEN_SECRET);
 
-            const data = await client.query('INSERT INTO users (name, password) VALUES ($1, $2) RETURNING *', [name]);
-
-            if (data.rowCount > 0) {
+            if (result === true) {
                 res.status(200).json({
-                    status: "SECCESS",
-                    message: `Nom et Password existent. Récupération de ${data.rowCount} tickets`,
-                    data: data.rows
+                    status: "SUCCESS",
+                    message: `Nom et Password valides.`,
+                    data: {...data.rows[0],token : accessToken}
                 });
-                console.log(`GET | api/users/login | 200 | SUCCESS \nNom et Password existent. Récupération de ${data.rowCount} tickets`);
+                console.log(`${req.method} | ${req.originalUrl} |  \nNom et Password valides`);
+               // console.log(`GET | api/users/login | 200 | SUCCESS \nNom et Password valides`);
             }
             else {
                 res.status(400).json({
                     status: "FAIL",
-                    message: `L'utilisateur n'existe pas ou le password est invalide`,
+                    message: `Le password est invalide`,
                     data: undefined
                 });
-                console.log(`GET | api/users/login | 400 | FAIL \nL'utilisateur n'existe pas ou le password est invalide`);
+                console.log(`${req.method} | ${req.originalUrl} | \nLe password est invalide`);
+                //console.log(`GET | api/users/login | 400 | FAIL \nLe password est invalide`);
             }
-            const accessToken = jwt.sign({ userId: user.id }, accessTokenSecret);
-
-            res.status(200).json({
-                status: 'OK',
-                data: accessToken,
-                message: 'logged in'
-            });
-        }
-
-        catch (err) {
-            console.log(err.stack);
-        };
-    });
+        })
+    }
+    catch (err) {
+        console.log(err.stack);
+    };
 });
 
 
-// créer un utilisateur dans la table des users
+
+// POST DU REGISTER
 usersRouter.post('/register', async (req, res) => {
     console.log(req.body.password);
     const password = req.body.password;
@@ -85,33 +84,49 @@ usersRouter.post('/register', async (req, res) => {
             message: "Le nom est inexistant ou invalide",
             data: undefined
         });
-        console.log('POST | users/login | 400 | FAIL \nLe nom est inexistant ou invalide');
+        console.log(`${req.method} | ${req.originalUrl} | \nLe nom est inexistant ou invalide`);
+        //console.log('POST | users/login | 400 | FAIL \nLe nom est inexistant ou invalide');
     }
 
     // vérifier le mot de passe existe
     if (password === undefined || typeof password !== typeof String()) {
         res.status(400).json({
             status: "FAIL",
-            message: "Le mot de passe n'existe pas",
+            message: "Le mot de passe est inexistant ou invalide",
             data: undefined
         });
-        console.log('POST | users/login | 400 | FAIL \nLe mot de passe n\'existe pas');
+        console.log(`${req.method} | ${req.originalUrl} | n\Le mot de passe est inexistant ou invalide`);
+        //console.log('POST | users/login | 400 | FAIL \nLe mot de passe est inexistant ou invalide');
 
     }
     bcrypt.hash(password, 10, async (err, hash) => {
         // Store hash in your password DB.
         try {
+            const userList = await client.query('SELECT * FROM users WHERE name = $1', [name])
 
-            const data = await client.query('INSERT INTO users (name, password) VALUES ($1, $2) RETURNING id,name', [name, hash]);
-            if (data.rowCount > 0) {
-                res.status(200).json({
-                    status: "SUCCESS",
-                    message: `Le mot de passe de ${name} a bien été modifié`,
-                    data: data.rows
-                });
-                console.log(`POST | /api/users/register | 200 | SUCCESS \nLe mot de passe de ${name} a bien été modifié `);
-
+            if (userList.rowCount === 0 ){
+                const data = await client.query('INSERT INTO users (name, password) VALUES ($1, $2) RETURNING id,name', [name, hash]);
+                if (data.rowCount > 0) {
+                    res.status(200).json({
+                        status: "SUCCESS",
+                        message: `Le mot de passe de ${name} est valide`,
+                        data: data.rows
+                    });
+                    console.log(`${req.method} | ${req.originalUrl} | \nLe mot de passe de ${name} est valide`);
+                    //console.log(`POST | /api/users/register | 200 | SUCCESS \nLe mot de passe de ${name} est valide`);
+    
+                }
             }
+            else
+            {
+                res.status(400).json({
+                    status: "FAIL",
+                    message: `Cet utilisateur existe déjà`,
+                    data: undefined
+                });
+                console.log(`${req.method} | ${req.originalUrl} | Cet utilisateur existe déjà`);
+            }
+
         }
 
         catch (err) {

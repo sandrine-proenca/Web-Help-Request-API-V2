@@ -1,11 +1,10 @@
 // imports
 const bcrypt = require('bcrypt');
 const express = require('express');
-const { Client } = require('pg');
 require('dotenv').config();
 const ticketsRouter = require('./routes/ticketsRouter');
 const usersRouter = require('./routes/usersRouter');
-const jwt = require('jsonwebtoken');
+
 
 /************************************************
 * Data's routes
@@ -13,17 +12,6 @@ const jwt = require('jsonwebtoken');
 // declarations
 const app = express();
 const port = 8000;
-/* const client = new Client({
-    user: process.env.DB_USERNAME,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: 5432,
-});
-
-
-client.connect();
- */
 app.use(express.json());
 app.use(function (req, res, next) {
 
